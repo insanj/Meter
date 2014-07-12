@@ -1,7 +1,7 @@
 //
 //  Meter.h
 //  Meter
-//	Consolidated headers for UIKit / SpringBoard runtime.
+//	Consolidated headers for UIKit / CoreTelephony runtime and Meter constants.
 //	
 //  Created by insanj on 7/12/14.
 //  Copyright (c) 2014, Juian Weiss All rights reserved.
@@ -22,8 +22,8 @@
 extern "C" NSString * CTSIMSupportGetSIMStatus();
 extern "C" int CTGetSignalStrength();
 
-static NSString * kMeterDirectoryPath = @"/Library/Application Support/Meter/Assets/";
-static NSInteger kMeterLevelCount = 6;
+static NSString * kMeterAssetDirectoryPath = @"/Library/Application Support/Meter/Assets/";
+static int kMeterLevelCount = 6;
 
 @interface UIStatusBarForegroundStyleAttributes : NSObject
 

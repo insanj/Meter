@@ -32,18 +32,27 @@ static UIImage * meter_tintedImageWithColor(UIImage *image, UIColor *color) {
 */
 
 static BOOL meter_assetsArePresent() {
-	return [[NSFileManager defaultManager] contentsOfDirectoryAtPath:kMeterDirectoryPath error:nil].count == (kMeterLevelCount * 2);
+	int meterAssetDirectoryCount = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:kMeterAssetDirectoryPath error:nil].count;
+
+	MLOG(@"meterAssetDirectoryCount: %i", meterAssetDirectoryCount);
+	return meterAssetDirectoryCount == kMeterLevelCount * 2;
 }
 
 static UIImage * meter_lightContentsImageForValue(BOOL light, int value) {
-	NSString *meterImagePath = [NSString stringWithFormat:@"%@%@-%i.png", kMeterDirectoryPath, light ? @"light" : @"dark", value];
-	return [UIImage imageWithContentsOfFile:meterImagePath];
+	NSString *meterImagePath = [NSString stringWithFormat:@"%@%@-%i@2x.png", kMeterAssetDirectoryPath, light ? @"light" : @"dark", value];
+	UIImage *meterContentsImage = [UIImage imageWithContentsOfFile:meterImagePath];
+
+	MLOG(@"meterImagePath: %@, image: %@", meterImagePath, meterContentsImage);
+	return meterContentsImage;
 }
 
 static CGFloat meter_currentSignalStrength() {
 	NSString *currentSIMStatus = CTSIMSupportGetSIMStatus(); 
 	CGFloat currentSignalStrength = CTGetSignalStrength();
-	return [currentSIMStatus isEqualToString:@"kCTSIMSupportSIMStatusReady"] ? currentSignalStrength : 0.0;
+	CGFloat currentSIMBasedSignalStrength = [currentSIMStatus isEqualToString:@"kCTSIMSupportSIMStatusReady"] ? currentSignalStrength : 0.0;
+
+	MLOG(@"currentSIMStatus: %@, currentSignalStrength: %f, currentSIMBasedSignalStrength: %f", currentSIMStatus, currentSignalStrength, currentSIMBasedSignalStrength);
+	return currentSIMBasedSignalStrength;
 }
 
 /*
@@ -56,18 +65,21 @@ static CGFloat meter_currentSignalStrength() {
 */
 
 static int meter_valueFromSignalStrength(CGFloat signalStrength) {
-	if (signalStrength < -105.0) {
+	if (signalStrength < -121.0) {
 		return 0;
 	}
 
-	else if (signalStrength > -65.0) {
-		return kMeterLevelCount;
+	else if (signalStrength > -90.0) {
+		return kMeterLevelCount - 1;
 	}
 
-	CGFloat oldMinimum = -105.0, oldMaximum = -65.0;
-	int newMinimum = 0, newMaximum = kMeterLevelCount;
+	CGFloat oldMinimum = -105.0, oldMaximum = -90.0;
+	int newMinimum = 0, newMaximum = kMeterLevelCount - 1;
 		
-	return ceilf(newMinimum + ((signalStrength - oldMinimum) * ((newMaximum - newMinimum)/(oldMaximum - oldMinimum))));
+	int valueFromSignalStrength = ceilf(newMinimum + ((signalStrength - oldMinimum) * ((newMaximum - newMinimum)/(oldMaximum - oldMinimum))));
+
+	MLOG(@"signalStrength: %f, valueFromSignalStrength: %i", signalStrength, valueFromSignalStrength);
+	return valueFromSignalStrength;
 
 }
 
@@ -79,7 +91,10 @@ static int meter_valueFromSignalStrength(CGFloat signalStrength) {
 		[[[self foregroundStyle] textColorForStyle:[self legibilityStyle]] getWhite:&w alpha:&a];
 		
 		UIImage *meterContentsImage = meter_lightContentsImageForValue(w >= 0.5, meter_valueFromSignalStrength(meter_currentSignalStrength()));
-		return [%c(_UILegibilityImageSet) imageFromImage:meterContentsImage withShadowImage:meterContentsImage];
+		_UILegibilityImageSet *meterLegibilityImageSet = [%c(_UILegibilityImageSet) imageFromImage:meterContentsImage withShadowImage:meterContentsImage];
+
+		MLOG(@"meterContentsImage: %@, meterLegibilityImageSet: %@", meterContentsImage, meterLegibilityImageSet);
+		return meterLegibilityImageSet;
 	}
 
 	return %orig();
