@@ -6,7 +6,7 @@ include theos/makefiles/common.mk
 
 TWEAK_NAME = Meter
 Meter_FILES = Meter.xm
-Meter_FRAMEWORKS = UIKit
+Meter_FRAMEWORKS = CoreFoundation UIKit CoreTelephony
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
