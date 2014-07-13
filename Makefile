@@ -6,10 +6,12 @@ DEBUG = 1
 include theos/makefiles/common.mk
 
 TWEAK_NAME = Meter
-Meter_FILES = Meter.xm
-Meter_FRAMEWORKS = CoreFoundation UIKit CoreTelephony
+Meter_FILES = Meter.xm MeterListener.xm
+Meter_FRAMEWORKS = CoreFoundation UIKit
+Meter_LDFLAGS = -lactivator -Ltheos/lib
 
 include $(THEOS_MAKE_PATH)/tweak.mk
+include $(THEOS_MAKE_PATH)/aggregate.mk
 
 before-stage::
 	find . -name ".DS_Store" -delete

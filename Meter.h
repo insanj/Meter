@@ -7,10 +7,9 @@
 //  Copyright (c) 2014, Juian Weiss All rights reserved.
 //
 
-#include <CoreFoundation/CoreFoundation.h>
-#include <UIKit/UIKit.h>
-#include <CoreTelephony/CoreTelephony.h>
-#include <objc/runtime.h>
+#import <CoreFoundation/CoreFoundation.h>
+#import <Foundation/NSDistributedNotificationCenter.h>
+#import <UIKit/UIKit.h>
 #import "substrate.h"
 
 #ifdef DEBUG
@@ -19,14 +18,11 @@
 	#define MLOG(fmt, ...) 
 #endif
 
-extern "C" NSString * CTSIMSupportGetSIMStatus();
-extern "C" int CTGetSignalStrength();
-
-static NSString * kMeterRecordsFilePath = /*[NSHomeDirectory() stringByAppendingPathComponent:*/@"/Library/Application Support/Meter/Records.plist";//];
+static NSString * kMeterStatusBarRefreshNotification = @"MRStatusBarRefreshNotification";
 static NSString * kMeterAssetDirectoryPath = @"/Library/Application Support/Meter/Assets/";
-static int kMeterLevelCount = 6;
-static int kMeterTotalRecordsCount = 5;
+static int kMeterLevelCount = 20;
 
+// Used to detect light / dark content for tinting or image selection
 @interface UIStatusBarForegroundStyleAttributes : NSObject
 
 - (int)legibilityStyle;
@@ -34,6 +30,7 @@ static int kMeterTotalRecordsCount = 5;
 
 @end
 
+// Return value of -contentsImage in status bar item views
 @interface _UILegibilityImageSet : NSObject
 
 @property(retain) UIImage *image;
@@ -49,6 +46,7 @@ static int kMeterTotalRecordsCount = 5;
 
 @end
 
+// Status bar item views, of which the signal is a member
 @interface UIStatusBarItemView : UIView
 
 - (int)textStyle;
@@ -84,6 +82,7 @@ static int kMeterTotalRecordsCount = 5;
 
 @end
 
+// Signal status bar item view, controls all container functionality
 @interface UIStatusBarSignalStrengthItemView : UIStatusBarItemView {
     int _signalStrengthRaw;
     int _signalStrengthBars;
@@ -96,5 +95,26 @@ static int kMeterTotalRecordsCount = 5;
 - (_UILegibilityImageSet *)contentsImage;
 - (BOOL)updateForNewData:(id)arg1 actions:(int)arg2;
 - (void)touchesEnded:(id)arg1 withEvent:(id)arg2;
+
+@end
+
+// Status bar method for "refreshing," taken from Circlet
+@interface UIStatusBar
+
+- (void)setShowsOnlyCenterItems:(BOOL)arg1;
+
+@end
+
+// Private UIApplication method to retrieve pointer to status bar
+@interface UIApplication (Private)
+
+- (UIStatusBar *)statusBar;
+
+@end
+
+// Category on signal item view with %new implementation
+@interface UIStatusBarSignalStrengthItemView (Meter)
+
+- (void)meter_toggleRSSI:(NSNotification *)notification;
 
 @end
