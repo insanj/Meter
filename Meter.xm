@@ -8,84 +8,87 @@
 //
 
 #import "Meter.h"
-#import "MeterListener.h"
 
 static BOOL meter_assetsArePresent() {
 	int meterAssetDirectoryCount = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:kMeterAssetDirectoryPath error:nil].count;
-	return meterAssetDirectoryCount == kMeterLevelCount * 2;
+	BOOL meterAssetsArePresent = meterAssetDirectoryCount == kMeterLevelCount * 2;
+	MLOG(@"meterAssetDirectoryCount: %i, meterAssetsArePresent: %@", meterAssetDirectoryCount, meterAssetsArePresent ? @"YES" : @"NO");
+	return meterAssetsArePresent;
 }
 
 static UIImage * meter_lightContentsImageForValue(BOOL light, int value) {
 	NSString *meterImagePath = [NSString stringWithFormat:@"%@%@-%i@2x.png", kMeterAssetDirectoryPath, light ? @"light" : @"dark", value];
 	UIImage *meterContentsImage = [UIImage imageWithContentsOfFile:meterImagePath];
+	MLOG(@"meterImagePath: %@, meterContentsImage: %@", meterImagePath, meterContentsImage);
 	return meterContentsImage;
 }
 
 static int meter_valueFromRSSIString(NSString *rssiString) {
 	int rssiValue = [rssiString intValue];
+	MLOG(@"rssiString: %@, rssiValue: %i", rssiString, rssiValue);
 	switch (rssiValue) {
 		default:
-			return rssiValue >= -70 ? 20 : 1;
+			return rssiValue >= -70 ? 19 : 0;
 		case -71:
 		case -72:
-			return 19;
+			return 18;
 		case -73:
 		case -74:
-			return 18;
+			return 17;
 		case -75:
 		case -76:
-			return 17;
+			return 16;
 		case -77:
 		case -78:
 		case -79:
-			return 16;
+			return 15;
 		case -80:
 		case -81:
 		case -82:
-			return 15;
+			return 14;
 		case -83:
 		case -84:
 		case -85:
-			return 14;
+			return 13;
 		case -86:
 		case -87:
 		case -88:
-			return 13;
+			return 12;
 		case -89:
 		case -90:
-			return 12;
+			return 11;
 		case -91:
 		case -92:
-			return 11;
+			return 10;
 		case -93:
 		case -94:
-			return 10;
+			return 9;
 		case -95:
 		case -96:
-			return 9;
+			return 8;
 		case -97:
 		case -98:
-			return 8;
+			return 7;
 		case -99:
 		case -100:
-			return 7;
+			return 6;
 		case -101:
 		case -102:
-			return 6;
+			return 5;
 		case -103:
 		case -104:
 		case -105:
-			return 5;
+			return 4;
 		case -106:
 		case -107:
 		case -108:
 		case -109:
-			return 4;
+			return 3;
 		case -110:
 		case -111:
 		case -112:
 		case -113:
-			return 3;
+			return 2;
 		case -114:
 		case -115:
 		case -116:
@@ -93,32 +96,32 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 		case -118:
 		case -119:
 		case -120:
-			return 2;
+			return 1;
 	}
 }
 
 %hook UIStatusBarSignalStrengthItemView
 
-- (id)init {
+- (id)initWithItem:(id)arg1 data:(id)arg2 actions:(int)arg3 style:(id)arg4 {
 	UIStatusBarSignalStrengthItemView *itemView = %orig();
-	[[NSDistributedNotificationCenter defaultCenter] addObserver:itemView selector:@selector(meter_toggleRSSI:) name:kMeterListenerToggleRSSINotification object:nil];
+	[[NSDistributedNotificationCenter defaultCenter] addObserver:itemView selector:@selector(meter_toggleRSSI:) name:@"MRListenerToggleRSSINotification" object:nil];
 	return itemView;
 }
 
 %new - (void)meter_toggleRSSI:(NSNotification *)notification {
-	BOOL isShowingRSSI = MSHookIvar<BOOL>(self, "_showRSSI");
-	BOOL isEnabledRSSI = MSHookIvar<BOOL>(self, "_enableRSSI");
-
-	MSHookIvar<BOOL>(self, "_showRSSI") = !isShowingRSSI;
-	MSHookIvar<BOOL>(self, "_enableRSSI") = !isEnabledRSSI;
-
-	[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterStatusBarRefreshNotification object:nil];
-
-	MLOG(@"wasShowingRSSI: %@, isShowingRSSI: %@, wasEnabledRSSI: %@, isEnabledRSSI: %@", isShowingRSSI ? @"YES" : @"NO", MSHookIvar<BOOL>(self, "_showRSSI") ? @"YES" : @"NO", isEnabledRSSI ? @"YES" : @"NO", MSHookIvar<BOOL>(self, "_enableRSSI") ? @"YES" : @"NO");
+	NSNumber *currentRSSIStringEnabledValue = objc_getAssociatedObject([UIApplication sharedApplication], &kMeterRSSIStringEnabledKey);
+	BOOL currentRSSIStringEnabled = currentRSSIStringEnabledValue && [currentRSSIStringEnabledValue boolValue];
+	[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterStatusBarRefreshNotification object:nil userInfo:@{@"enabled" : @(!currentRSSIStringEnabled)}];
 }
 
 - (_UILegibilityImageSet *)contentsImage {
-	if (meter_assetsArePresent()) {
+	NSNumber *currentRSSIStringEnabledValue = objc_getAssociatedObject([UIApplication sharedApplication], &kMeterRSSIStringEnabledKey);
+	BOOL currentRSSIStringEnabled = currentRSSIStringEnabledValue && [currentRSSIStringEnabledValue boolValue];
+	if (currentRSSIStringEnabled) {
+		return [self imageWithText:[self _stringForRSSI]];
+	}
+
+	else if (meter_assetsArePresent()) {
 		CGFloat w, a;	// Color detection lifted from Circlet (https://github.com/insanj/Circlet)
 		[[[self foregroundStyle] textColorForStyle:[self legibilityStyle]] getWhite:&w alpha:&a];
 		
@@ -139,9 +142,14 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 
 %ctor {
 	[[NSDistributedNotificationCenter defaultCenter] addObserverForName:kMeterStatusBarRefreshNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *notification){
-		MLOG(@"recieved notification");
+		NSNumber *rssiEnabledString = notification.userInfo[@"enabled"];
+		objc_setAssociatedObject([UIApplication sharedApplication], &kMeterRSSIStringEnabledKey, rssiEnabledString, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
 		UIStatusBar *statusBar = (UIStatusBar *)[[UIApplication sharedApplication] statusBar];
 		[statusBar setShowsOnlyCenterItems:YES];
-		[statusBar setShowsOnlyCenterItems:NO];
+
+		//dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+			[statusBar setShowsOnlyCenterItems:NO];
+		//});
 	}];
 }

@@ -10,6 +10,7 @@
 #import <CoreFoundation/CoreFoundation.h>
 #import <Foundation/NSDistributedNotificationCenter.h>
 #import <UIKit/UIKit.h>
+#import <objc/runtime.h>
 #import "substrate.h"
 
 #ifdef DEBUG
@@ -18,6 +19,7 @@
 	#define MLOG(fmt, ...) 
 #endif
 
+static char * kMeterRSSIStringEnabledKey;
 static NSString * kMeterStatusBarRefreshNotification = @"MRStatusBarRefreshNotification";
 static NSString * kMeterAssetDirectoryPath = @"/Library/Application Support/Meter/Assets/";
 static int kMeterLevelCount = 20;
@@ -49,8 +51,9 @@ static int kMeterLevelCount = 20;
 // Status bar item views, of which the signal is a member
 @interface UIStatusBarItemView : UIView
 
+- (_UILegibilityImageSet *)imageWithText:(id)arg1;
+
 - (int)textStyle;
-- (id)imageWithText:(id)arg1;
 - (CGFloat)maximumOverlap;
 - (CGFloat)addContentOverlap:(CGFloat)arg1;
 - (CGFloat)resetContentOverlap;
@@ -99,7 +102,7 @@ static int kMeterLevelCount = 20;
 @end
 
 // Status bar method for "refreshing," taken from Circlet
-@interface UIStatusBar
+@interface UIStatusBar : UIView
 
 - (void)setShowsOnlyCenterItems:(BOOL)arg1;
 

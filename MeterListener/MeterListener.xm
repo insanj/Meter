@@ -12,7 +12,7 @@
 @implementation MeterListener
 
 - (void)activator:(LAActivator *)activator receiveEvent:(LAEvent *)event {
-	[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterListenerToggleRSSINotification object:nil];
+	[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"MRListenerToggleRSSINotification" object:nil];
 	[event setHandled:YES];
 }
 

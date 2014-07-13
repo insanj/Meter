@@ -11,8 +11,6 @@
 #import <Foundation/NSDistributedNotificationCenter.h>
 #import <libactivator/libactivator.h>
 
-static NSString * kMeterListenerToggleRSSINotification = @"MRListenerToggleRSSINotification";
-
 @interface MeterListener : NSObject <LAListener>
 
 - (void)activator:(LAActivator *)activator receiveEvent:(LAEvent *)event;
