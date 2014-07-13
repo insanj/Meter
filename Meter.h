@@ -22,10 +22,10 @@
 extern "C" NSString * CTSIMSupportGetSIMStatus();
 extern "C" int CTGetSignalStrength();
 
-static NSString * kMeterRecordsFilePath = @"/Library/Application Support/Meter/records.plist";
+static NSString * kMeterRecordsFilePath = /*[NSHomeDirectory() stringByAppendingPathComponent:*/@"/Library/Application Support/Meter/Records.plist";//];
 static NSString * kMeterAssetDirectoryPath = @"/Library/Application Support/Meter/Assets/";
 static int kMeterLevelCount = 6;
-static int kMeterTotalRecordsCount = 10;
+static int kMeterTotalRecordsCount = 5;
 
 @interface UIStatusBarForegroundStyleAttributes : NSObject
 

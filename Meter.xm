@@ -51,29 +51,41 @@ static CGFloat meter_averageSignalStrengthForCycles(int cycles) {
 	CGFloat currentSignalStrength = CTGetSignalStrength();
 	CGFloat currentSIMBasedSignalStrength = [currentSIMStatus isEqualToString:@"kCTSIMSupportSIMStatusReady"] ? currentSignalStrength : 0.0;
 
-	// Pull up the saved records dictionary from the path
-	NSDictionary *recordsDictionary = [NSDictionary dictionaryWithContentsOfFile:kMeterRecordsFilePath];
-	NSArray *recordsList = recordsDictionary ? (NSArray *)recordsDictionary[@"list"] : @[];
-	NSMutableArray *savedRecords = [[NSMutableArray alloc] initWithArray:recordsList];
+	// Pull up the saved records array from the path
+	NSError *recordsArrayError;
+	NSData *recordsArrayData = [NSData dataWithContentsOfFile:kMeterRecordsFilePath options:0 error:&recordsArrayError];
 
-	if (savedRecords.count > kMeterTotalRecordsCount) {
-		[savedRecords removeLastObject];
+	if (recordsArrayError) {
+		NSLog(@"[Meter] %@ -> %@", recordsArrayError, kMeterRecordsFilePath);
 	}
 
-	[savedRecords insertObject:@(currentSIMBasedSignalStrength) atIndex:0];
+	NSArray *recordsArray = [NSKeyedUnarchiver unarchiveObjectWithData:recordsArrayData];
+	NSMutableArray *runningRecordsArray = recordsArray ? [[NSMutableArray alloc] initWithArray:recordsArray] : [[NSMutableArray alloc] init];
+
+	if (runningRecordsArray.count > kMeterTotalRecordsCount) {
+		[runningRecordsArray removeLastObject];
+	}
+
+	[runningRecordsArray insertObject:@(currentSIMBasedSignalStrength) atIndex:0];
 	CGFloat averagedSignalStrength = 0.0;
-	for (NSNumber *strength in savedRecords) {
+	for (NSNumber *strength in runningRecordsArray) {
 		averagedSignalStrength += [strength floatValue];
 	}
 
-	averagedSignalStrength /= savedRecords.count;
-	NSDictionary *averagedRecordsDictionary = @{ @"list" : savedRecords };
-	BOOL dictionaryWasOfProperFormat = [averagedRecordsDictionary writeToFile:kMeterRecordsFilePath atomically:YES];
+	averagedSignalStrength /= runningRecordsArray.count;
 
-	MLOG(@"cycles: %i, currentSIMStatus: %@, currentSignalStrength: %f, currentSIMBasedSignalStrength: %f, recordsDictionary: %@, savedRecords: %@, averagedSignalStrength: %f, averagedRecordsDictionary: %@, dictionaryWasOfProperFormat : %@", cycles, currentSIMStatus, currentSignalStrength, currentSIMBasedSignalStrength, recordsDictionary, savedRecords, averagedSignalStrength, averagedRecordsDictionary);
-	[savedRecords release];
+	NSData *runningArrayData = [NSKeyedArchiver archivedDataWithRootObject:runningRecordsArray];
+	NSError *runningArrayWriteError;
+	BOOL runningArrayWasOfProperFormat = [runningArrayData writeToFile:kMeterRecordsFilePath options:0 error:&runningArrayWriteError];
 
-	return cycles ? meter_averageSignalStrengthForCycles(cycles - 1) : averagedSignalStrength;
+	if (runningArrayWriteError || !runningArrayWasOfProperFormat) {
+		NSLog(@"[Meter] %@ (%@ == %@ -> %@)", runningArrayWriteError, runningRecordsArray, runningArrayData, kMeterRecordsFilePath);
+	}
+
+	MLOG(@"cycles: %i, currentSIMStatus: %@, currentSignalStrength: %f, currentSIMBasedSignalStrength: %f, recordsArrayError: %@, recordsArrayData: %@, recordsArray: %@, runningRecordsArray: %@, averagedSignalStrength: %f, runningArrayData: %@, runningArrayWriteError: %@, runningArrayWasOfProperFormat : %@", cycles, currentSIMStatus, currentSignalStrength, currentSIMBasedSignalStrength, recordsArrayError, recordsArrayData, recordsArray, runningRecordsArray, averagedSignalStrength, runningArrayData, runningArrayWriteError, runningArrayWasOfProperFormat ? @"YES" : @"NO");
+	[runningRecordsArray release];
+
+	return /*cycles ? meter_averageSignalStrengthForCycles(cycles - 1) :*/ averagedSignalStrength;
 }
 
 // Take 10+ measurements http://stackoverflow.com/questions/15427507/how-to-find-out-carrier-signal-strength-programatically
@@ -118,7 +130,7 @@ static int meter_valueFromSignalStrength(CGFloat signalStrength) {
 	
 	int meterDisplayLevelMinimum = 0, meterDisplayLevelMaximum = kMeterLevelCount - 1;
 		
-	int valueFromSignalStrength = ceilf(meterDisplayLevelMinimum + ((signalStrength - signalStrengthMinimum) * ((meterDisplayLevelMaximum - meterDisplayLevelMinimum)/(signalStrengthMaximum - signalStrengthMinimum))));
+	int valueFromSignalStrength = meterDisplayLevelMaximum - ceilf(meterDisplayLevelMinimum + ((signalStrength - signalStrengthMinimum) * ((meterDisplayLevelMaximum - meterDisplayLevelMinimum)/(signalStrengthMaximum - signalStrengthMinimum))));
 
 	MLOG(@"signalStrength: %f, valueFromSignalStrength: %i", signalStrength, valueFromSignalStrength);
 	return valueFromSignalStrength;
