@@ -22,12 +22,11 @@
 typedef NS_ENUM(NSUInteger, MRSignalDisplayType) {
 	MRMeterThemeDisplayType,
     MRMeterRSSIDisplayType,
-	MRMeterDefaultDisplayType,
+	MRMeterAppleDisplayType,
 };
 
-static char * kMeterSignalDisplayTypeKey;
-static NSString * kMeterStatusBarRefreshNotification = @"MRStatusBarRefreshNotification";
-static NSString * kMeterRememberDisplayTypeNotification = @"MRRememberDisplayTypeNotification";
+static NSString *kMeterSignalDisplayPreferencesPath = @"/var/mobile/Library/Preferences/com.insanj.meter.plist", *kMeterSignalDisplayPreferencesKey = @"meterSignalDisplay";
+static NSString * kMeterStatusBarRefreshNotification = @"MRStatusBarRefreshNotification", * kMeterRememberDisplayTypeNotification = @"MRRememberDisplayTypeNotification";
 static NSString * kMeterAssetDirectoryPath = @"/Library/Application Support/Meter/Assets/";
 static int kMeterLevelCount = 20;
 static NSTimeInterval kMeterLastRSSIToggleTimeInterval;
@@ -115,6 +114,15 @@ static NSTimeInterval kMeterLastRSSIToggleTimeInterval;
 - (void)setShowsOnlyCenterItems:(BOOL)arg1;
 
 @end
+
+@interface SBStatusBarStateAggregator
+
++ (SBStatusBarStateAggregator *)sharedInstance;
+- (BOOL)_setItem:(int)item enabled:(BOOL)enabled;
+
+@end
+
+
 
 // Private UIApplication method to retrieve pointer to status bar
 @interface UIApplication (Private)

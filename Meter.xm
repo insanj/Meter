@@ -9,16 +9,38 @@
 
 #import "Meter.h"
 
+// Returns "saved display type," as per the farther saveDisplayType function.
+static MRSignalDisplayType meter_savedDisplayType() {
+	NSDictionary *meterPreferences = [NSDictionary dictionaryWithContentsOfFile:kMeterSignalDisplayPreferencesPath];
+	if (!meterPreferences) {
+		return MRMeterThemeDisplayType;
+	}
+
+	NSNumber *savedDisplayType = meterPreferences[kMeterSignalDisplayPreferencesKey];
+	return savedDisplayType ? [savedDisplayType integerValue] : MRMeterThemeDisplayType;
+}
+
+// Saves the given display type at the constant preferences plist location.
+static BOOL meter_saveDisplayType(MRSignalDisplayType type) {
+	NSDictionary *meterPreferencesToSave = @{ kMeterSignalDisplayPreferencesKey : @(type)};
+	BOOL meterPreferencesSaved = [meterPreferencesToSave writeToFile:kMeterSignalDisplayPreferencesPath atomically:YES];
+	return meterPreferencesSaved;
+}
+
+// Returns if the needed Meter assets are recognized in the proper directory.
 static BOOL meter_assetsArePresent() {
 	int meterAssetDirectoryCount = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:kMeterAssetDirectoryPath error:nil].count;
 	return meterAssetDirectoryCount == kMeterLevelCount * 2;
 }
 
+// Returns the proper image extracted from the assets directory, as per the 
+// given light  and numerical value.
 static UIImage * meter_lightContentsImageForValue(BOOL light, int value) {
 	NSString *meterImagePath = [NSString stringWithFormat:@"%@%@-%i@2x.png", kMeterAssetDirectoryPath, light ? @"light" : @"dark", value];
 	return [UIImage imageWithContentsOfFile:meterImagePath];
 }
 
+// Returns a fine-grain 1/20 value using Joe's algorithm on the given RSSI string.
 static int meter_valueFromRSSIString(NSString *rssiString) {
 	int rssiValue = [rssiString intValue];
 	switch (rssiValue) {
@@ -97,36 +119,42 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 
 %hook UIStatusBarSignalStrengthItemView
 
-- (id)initWithItem:(id)arg1 data:(id)arg2 actions:(int)arg3 style:(id)arg4 {
-	UIStatusBarSignalStrengthItemView *itemView = %orig();
-	[[NSDistributedNotificationCenter defaultCenter] addObserver:itemView selector:@selector(meter_toggleRSSI:) name:@"MRListenerToggleRSSINotification" object:nil];
-	return itemView;
+- (BOOL)updateForNewData:(id)arg1 actions:(int)arg2 {
+	[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
+	[[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(meter_toggleRSSI:) name:@"MRListenerToggleRSSINotification" object:nil];
+	return %orig();
 }
 
 %new - (void)meter_toggleRSSI:(NSNotification *)notification {
 	NSTimeInterval currentTimeInterval = [NSDate timeIntervalSinceReferenceDate];
 	NSTimeInterval timeIntervalSinceLastToggle = currentTimeInterval - kMeterLastRSSIToggleTimeInterval;
-	kMeterLastRSSIToggleTimeInterval = currentTimeInterval;
 
-	if (timeIntervalSinceLastToggle < 1.5) {
+	if (timeIntervalSinceLastToggle < 1.0) {
 		return;
 	}
 
-	NSNumber *savedMeterDisplayType = objc_getAssociatedObject([UIApplication sharedApplication], &kMeterSignalDisplayTypeKey);
-	MRSignalDisplayType previousMeterDisplayType = savedMeterDisplayType ? [savedMeterDisplayType integerValue] : MRMeterThemeDisplayType;
+	kMeterLastRSSIToggleTimeInterval = currentTimeInterval;
+
+	MRSignalDisplayType previousMeterDisplayType = meter_savedDisplayType();
 	MRSignalDisplayType nextMeterDisplayType = previousMeterDisplayType + 1;
-	if (nextMeterDisplayType > MRMeterDefaultDisplayType) {
+	if (nextMeterDisplayType > MRMeterAppleDisplayType) {
 		nextMeterDisplayType = MRMeterThemeDisplayType;
 	}
 
-	[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterStatusBarRefreshNotification object:nil userInfo:@{ @"nextMeterDisplayType" : @(nextMeterDisplayType) }];
+	BOOL savedDisplayTypeProperly = meter_saveDisplayType(nextMeterDisplayType);
+	if (!savedDisplayTypeProperly) {
+		NSLog(@"[Meter] Wasn't able to properly save display type (%i) to preferences path.", (int)nextMeterDisplayType);
+	}
+
+	else {
+		[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterStatusBarRefreshNotification object:nil];
+	}
 }
 
 - (_UILegibilityImageSet *)contentsImage {
-	NSNumber *savedMeterDisplayType = objc_getAssociatedObject([UIApplication sharedApplication], &kMeterSignalDisplayTypeKey);
-	MRSignalDisplayType currentMeterDisplayType = savedMeterDisplayType ? [savedMeterDisplayType integerValue] : MRMeterThemeDisplayType;
+	MRSignalDisplayType currentDisplayType = meter_savedDisplayType();
 	
-	if (currentMeterDisplayType == MRMeterThemeDisplayType && meter_assetsArePresent()) {
+	if (currentDisplayType == MRMeterThemeDisplayType && meter_assetsArePresent()) {
 		CGFloat w, a;	// Color detection lifted from Circlet (https://github.com/insanj/Circlet)
 		[[[self foregroundStyle] textColorForStyle:[self legibilityStyle]] getWhite:&w alpha:&a];
 		
@@ -135,7 +163,7 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 		return meterLegibilityImageSet;
 	}
 
-	else if (currentMeterDisplayType == MRMeterRSSIDisplayType) {
+	else if (currentDisplayType == MRMeterRSSIDisplayType) {
 		return [self imageWithText:[self _stringForRSSI]];
 	}
 
@@ -152,28 +180,11 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 %end
 
 %ctor {
-	// When a new app launches, wire the current display type, so they can "remember" the appearance
-	[[NSDistributedNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *notification){
-		NSLog(@"-%@: heard launch, sending state: %@", [UIApplication sharedApplication], objc_getAssociatedObject([UIApplication sharedApplication], &kMeterSignalDisplayTypeKey));
-		[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterRememberDisplayTypeNotification object:nil userInfo: @{ @"nextMeterDisplayType" : objc_getAssociatedObject([UIApplication sharedApplication], &kMeterSignalDisplayTypeKey) }];
-	}];
+	[[NSDistributedNotificationCenter defaultCenter] addObserverForName:kMeterStatusBarRefreshNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *notification) {
+		[[%c(SBStatusBarStateAggregator) sharedInstance] _setItem:3 enabled:NO];
 
-	// Listener for the above wire exchange-- should be received by launching processes, who can now
-	// retain the display type of Meter 
-	[[NSDistributedNotificationCenter defaultCenter] addObserverForName:kMeterRememberDisplayTypeNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *notification){
-		NSNumber *meterDisplayType = notification.userInfo[@"nextMeterDisplayType"];
-		NSLog(@"-%@: heard state wire, setting state: %@", [UIApplication sharedApplication], meterDisplayType);
-		objc_setAssociatedObject([UIApplication sharedApplication], &kMeterSignalDisplayTypeKey, meterDisplayType, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-	}];
-
-	// Assigns the display type associated obj, regardless of process (all running processes since activating Meter
-	// will hold some display type for it), and visually refreshes it using a Circlet-esq technique
-	[[NSDistributedNotificationCenter defaultCenter] addObserverForName:kMeterStatusBarRefreshNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *notification){
-		NSNumber *meterDisplayType = notification.userInfo[@"nextMeterDisplayType"];
-		objc_setAssociatedObject([UIApplication sharedApplication], &kMeterSignalDisplayTypeKey, meterDisplayType, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-
-		UIStatusBar *statusBar = (UIStatusBar *)[[UIApplication sharedApplication] statusBar];
-		[statusBar setShowsOnlyCenterItems:YES];
-		[statusBar setShowsOnlyCenterItems:NO];
-	}];
+		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+			[[%c(SBStatusBarStateAggregator) sharedInstance] _setItem:3 enabled:YES];
+		});
+ 	}];
 }
