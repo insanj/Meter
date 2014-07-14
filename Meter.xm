@@ -117,11 +117,40 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 	}
 }
 
+%hook SBStatusBarStateAggregator
+
+- (id)init {
+	SBStatusBarStateAggregator *stateAggregator = %orig();
+	[[NSDistributedNotificationCenter defaultCenter] addObserver:stateAggregator selector:@selector(meter_refreshSignal:) name:kMeterStatusBarRefreshNotification object:nil];
+	MLOG(@"added %@ observer to %@", kMeterStatusBarRefreshNotification, stateAggregator);
+	return stateAggregator;
+}
+
+%new - (void)meter_refreshSignal:(NSNotification *)notification {
+	MLOG(@"heard notification %@, flashing via aggregator %@", notification, self);
+	[self _setItem:3 enabled:NO];
+
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+		[self _setItem:3 enabled:YES];
+		MLOG(@"finished flashing item %i", 3);
+	});
+}
+
+
+- (void)dealloc {
+	%orig();
+	MLOG(@"removed %@'s notification observer in -dealloc", [UIApplication sharedApplication]);
+	[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
+}
+
+%end
+
 %hook UIStatusBarSignalStrengthItemView
 
 - (BOOL)updateForNewData:(id)arg1 actions:(int)arg2 {
 	[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(meter_toggleRSSI:) name:@"MRListenerToggleRSSINotification" object:nil];
+	MLOG(@"removing maybe-existing obervant properties of %@ to prevent duplicate %@ calls", self, @"MRListenerToggleRSSINotification");
 	return %orig();
 }
 
@@ -149,12 +178,16 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 	else {
 		[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterStatusBarRefreshNotification object:nil];
 	}
+
+	MLOG(@"heard call to toggleRSSI, setting %i and posting %@ for it after switching from %i", (int)nextMeterDisplayType, kMeterStatusBarRefreshNotification, (int)previousMeterDisplayType);
 }
 
 - (_UILegibilityImageSet *)contentsImage {
 	MRSignalDisplayType currentDisplayType = meter_savedDisplayType();
-	
+
 	if (currentDisplayType == MRMeterThemeDisplayType && meter_assetsArePresent()) {
+		MLOG(@"heard call to -contentsImage, %@ state is %i and assets are present", [UIApplication sharedApplication], (int)currentDisplayType);
+
 		CGFloat w, a;	// Color detection lifted from Circlet (https://github.com/insanj/Circlet)
 		[[[self foregroundStyle] textColorForStyle:[self legibilityStyle]] getWhite:&w alpha:&a];
 		
@@ -164,27 +197,20 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 	}
 
 	else if (currentDisplayType == MRMeterRSSIDisplayType) {
+		MLOG(@"heard call to -contentsImage, %@ state is %i, item's RSSI is %@", [UIApplication sharedApplication], (int)currentDisplayType, [self _stringForRSSI]);
 		return [self imageWithText:[self _stringForRSSI]];
 	}
 
 	else {
+		MLOG(@"heard call to -contentsImage, %@ state is %i, displaying original contents", [UIApplication sharedApplication], (int)currentDisplayType);
 		return %orig();
 	}
 }
 
 - (void)dealloc {
 	%orig();
+	MLOG(@"removed %@'s status bar item notification observer in -dealloc", [UIApplication sharedApplication]);
 	[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
 }
 
 %end
-
-%ctor {
-	[[NSDistributedNotificationCenter defaultCenter] addObserverForName:kMeterStatusBarRefreshNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *notification) {
-		[[%c(SBStatusBarStateAggregator) sharedInstance] _setItem:3 enabled:NO];
-
-		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-			[[%c(SBStatusBarStateAggregator) sharedInstance] _setItem:3 enabled:YES];
-		});
- 	}];
-}

@@ -46,49 +46,26 @@ static NSTimeInterval kMeterLastRSSIToggleTimeInterval;
 @property(retain) UIImage *shadowImage;
 
 + (id)imageFromImage:(UIImage *)arg1 withShadowImage:(UIImage *)arg2;
-
-- (void)setImage:(UIImage *)arg1;
-- (UIImage *)image;
 - (id)initWithImage:(UIImage *)arg1 shadowImage:(UIImage *)arg2;
-- (void)setShadowImage:(UIImage *)arg1;
-- (UIImage *)shadowImage;
 
 @end
 
 // Status bar item views, of which the signal is a member
 @interface UIStatusBarItemView : UIView
 
-- (_UILegibilityImageSet *)imageWithText:(id)arg1;
-
-- (int)textStyle;
-- (CGFloat)maximumOverlap;
-- (CGFloat)addContentOverlap:(CGFloat)arg1;
-- (CGFloat)resetContentOverlap;
-- (CGFloat)extraRightPadding;
-- (CGFloat)extraLeftPadding;
 - (id)textFont;
-- (void)drawText:(id)arg1 forWidth:(CGFloat)arg2 lineBreakMode:(int)arg3 letterSpacing:(CGFloat)arg4 textSize:(CGSize)arg5;
-- (CGFloat)setStatusBarData:(id)arg1 actions:(int)arg2;
-- (CGFloat)currentRightOverlap;
-- (CGFloat)currentLeftOverlap;
-- (CGFloat)currentOverlap;
-- (void)setCurrentOverlap:(CGFloat)arg1;
-- (void)setVisible:(BOOL)arg1 frame:(CGRect)arg2 duration:(double)arg3;
-- (CGFloat)shadowPadding;
-- (CGFloat)standardPadding;
-- (void)setLayerContentsImage:(id)arg1;
-- (CGFloat)legibilityStrength;
-- (CGFloat)updateContentsAndWidth;
-- (void)setAllowsUpdates:(BOOL)arg1;
 - (int)legibilityStyle;
+- (void)setVisible:(BOOL)arg1;
+- (_UILegibilityImageSet *)imageWithText:(id)arg1;
+- (BOOL)updateForNewData:(id)arg1 actions:(int)arg2;
+- (CGFloat)setStatusBarData:(id)arg1 actions:(int)arg2;
+- (UIStatusBarForegroundStyleAttributes *)foregroundStyle;
+
+// iOS 7+
 - (_UILegibilityImageSet *)contentsImage;
 
 // iOS 6
 - (UIImage *)contentsImageForStyle:(int)arg1;
-
-- (BOOL)updateForNewData:(id)arg1 actions:(int)arg2;
-- (UIStatusBarForegroundStyleAttributes *)foregroundStyle;
-- (void)setVisible:(BOOL)arg1;
 
 @end
 
@@ -101,33 +78,18 @@ static NSTimeInterval kMeterLastRSSIToggleTimeInterval;
 }
 
 - (NSString *)_stringForRSSI;
-- (CGFloat)extraRightPadding;
 - (_UILegibilityImageSet *)contentsImage;
 - (BOOL)updateForNewData:(id)arg1 actions:(int)arg2;
 - (void)touchesEnded:(id)arg1 withEvent:(id)arg2;
 
 @end
 
-// Status bar method for "refreshing," taken from Circlet
-@interface UIStatusBar : UIView
-
-- (void)setShowsOnlyCenterItems:(BOOL)arg1;
-
-@end
-
+// Status bar method for "refreshing," noted from bensge's blog post:
+// http://www.bensge.com/blog/blog/2014/06/22/uistatusbar-research/
 @interface SBStatusBarStateAggregator
 
 + (SBStatusBarStateAggregator *)sharedInstance;
 - (BOOL)_setItem:(int)item enabled:(BOOL)enabled;
-
-@end
-
-
-
-// Private UIApplication method to retrieve pointer to status bar
-@interface UIApplication (Private)
-
-- (UIStatusBar *)statusBar;
 
 @end
 
