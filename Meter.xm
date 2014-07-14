@@ -11,21 +11,16 @@
 
 static BOOL meter_assetsArePresent() {
 	int meterAssetDirectoryCount = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:kMeterAssetDirectoryPath error:nil].count;
-	BOOL meterAssetsArePresent = meterAssetDirectoryCount == kMeterLevelCount * 2;
-	MLOG(@"meterAssetDirectoryCount: %i, meterAssetsArePresent: %@", meterAssetDirectoryCount, meterAssetsArePresent ? @"YES" : @"NO");
-	return meterAssetsArePresent;
+	return meterAssetDirectoryCount == kMeterLevelCount * 2;
 }
 
 static UIImage * meter_lightContentsImageForValue(BOOL light, int value) {
 	NSString *meterImagePath = [NSString stringWithFormat:@"%@%@-%i@2x.png", kMeterAssetDirectoryPath, light ? @"light" : @"dark", value];
-	UIImage *meterContentsImage = [UIImage imageWithContentsOfFile:meterImagePath];
-	MLOG(@"meterImagePath: %@, meterContentsImage: %@", meterImagePath, meterContentsImage);
-	return meterContentsImage;
+	return [UIImage imageWithContentsOfFile:meterImagePath];
 }
 
 static int meter_valueFromRSSIString(NSString *rssiString) {
 	int rssiValue = [rssiString intValue];
-	MLOG(@"rssiString: %@, rssiValue: %i", rssiString, rssiValue);
 	switch (rssiValue) {
 		default:
 			return rssiValue >= -70 ? 19 : 0;
@@ -109,19 +104,29 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 }
 
 %new - (void)meter_toggleRSSI:(NSNotification *)notification {
-	NSNumber *currentRSSIStringEnabledValue = objc_getAssociatedObject([UIApplication sharedApplication], &kMeterRSSIStringEnabledKey);
-	BOOL currentRSSIStringEnabled = currentRSSIStringEnabledValue && [currentRSSIStringEnabledValue boolValue];
-	[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterStatusBarRefreshNotification object:nil userInfo:@{@"enabled" : @(!currentRSSIStringEnabled)}];
+	NSTimeInterval currentTimeInterval = [NSDate timeIntervalSinceReferenceDate];
+	NSTimeInterval timeIntervalSinceLastToggle = currentTimeInterval - kMeterLastRSSIToggleTimeInterval;
+	kMeterLastRSSIToggleTimeInterval = currentTimeInterval;
+
+	if (timeIntervalSinceLastToggle < 1.5) {
+		return;
+	}
+
+	NSNumber *savedMeterDisplayType = objc_getAssociatedObject([UIApplication sharedApplication], &kMeterSignalDisplayTypeKey);
+	MRSignalDisplayType previousMeterDisplayType = savedMeterDisplayType ? [savedMeterDisplayType integerValue] : MRMeterThemeDisplayType;
+	MRSignalDisplayType nextMeterDisplayType = previousMeterDisplayType + 1;
+	if (nextMeterDisplayType > MRMeterDefaultDisplayType) {
+		nextMeterDisplayType = MRMeterThemeDisplayType;
+	}
+
+	[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterStatusBarRefreshNotification object:nil userInfo:@{ @"nextMeterDisplayType" : @(nextMeterDisplayType) }];
 }
 
 - (_UILegibilityImageSet *)contentsImage {
-	NSNumber *currentRSSIStringEnabledValue = objc_getAssociatedObject([UIApplication sharedApplication], &kMeterRSSIStringEnabledKey);
-	BOOL currentRSSIStringEnabled = currentRSSIStringEnabledValue && [currentRSSIStringEnabledValue boolValue];
-	if (currentRSSIStringEnabled) {
-		return [self imageWithText:[self _stringForRSSI]];
-	}
-
-	else if (meter_assetsArePresent()) {
+	NSNumber *savedMeterDisplayType = objc_getAssociatedObject([UIApplication sharedApplication], &kMeterSignalDisplayTypeKey);
+	MRSignalDisplayType currentMeterDisplayType = savedMeterDisplayType ? [savedMeterDisplayType integerValue] : MRMeterThemeDisplayType;
+	
+	if (currentMeterDisplayType == MRMeterThemeDisplayType && meter_assetsArePresent()) {
 		CGFloat w, a;	// Color detection lifted from Circlet (https://github.com/insanj/Circlet)
 		[[[self foregroundStyle] textColorForStyle:[self legibilityStyle]] getWhite:&w alpha:&a];
 		
@@ -130,7 +135,13 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 		return meterLegibilityImageSet;
 	}
 
-	return %orig();
+	else if (currentMeterDisplayType == MRMeterRSSIDisplayType) {
+		return [self imageWithText:[self _stringForRSSI]];
+	}
+
+	else {
+		return %orig();
+	}
 }
 
 - (void)dealloc {
@@ -141,15 +152,28 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 %end
 
 %ctor {
+	// When a new app launches, wire the current display type, so they can "remember" the appearance
+	[[NSDistributedNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *notification){
+		NSLog(@"-%@: heard launch, sending state: %@", [UIApplication sharedApplication], objc_getAssociatedObject([UIApplication sharedApplication], &kMeterSignalDisplayTypeKey));
+		[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterRememberDisplayTypeNotification object:nil userInfo: @{ @"nextMeterDisplayType" : objc_getAssociatedObject([UIApplication sharedApplication], &kMeterSignalDisplayTypeKey) }];
+	}];
+
+	// Listener for the above wire exchange-- should be received by launching processes, who can now
+	// retain the display type of Meter 
+	[[NSDistributedNotificationCenter defaultCenter] addObserverForName:kMeterRememberDisplayTypeNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *notification){
+		NSNumber *meterDisplayType = notification.userInfo[@"nextMeterDisplayType"];
+		NSLog(@"-%@: heard state wire, setting state: %@", [UIApplication sharedApplication], meterDisplayType);
+		objc_setAssociatedObject([UIApplication sharedApplication], &kMeterSignalDisplayTypeKey, meterDisplayType, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	}];
+
+	// Assigns the display type associated obj, regardless of process (all running processes since activating Meter
+	// will hold some display type for it), and visually refreshes it using a Circlet-esq technique
 	[[NSDistributedNotificationCenter defaultCenter] addObserverForName:kMeterStatusBarRefreshNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *notification){
-		NSNumber *rssiEnabledString = notification.userInfo[@"enabled"];
-		objc_setAssociatedObject([UIApplication sharedApplication], &kMeterRSSIStringEnabledKey, rssiEnabledString, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+		NSNumber *meterDisplayType = notification.userInfo[@"nextMeterDisplayType"];
+		objc_setAssociatedObject([UIApplication sharedApplication], &kMeterSignalDisplayTypeKey, meterDisplayType, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 
 		UIStatusBar *statusBar = (UIStatusBar *)[[UIApplication sharedApplication] statusBar];
 		[statusBar setShowsOnlyCenterItems:YES];
-
-		//dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-			[statusBar setShowsOnlyCenterItems:NO];
-		//});
+		[statusBar setShowsOnlyCenterItems:NO];
 	}];
 }

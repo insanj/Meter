@@ -19,10 +19,18 @@
 	#define MLOG(fmt, ...) 
 #endif
 
-static char * kMeterRSSIStringEnabledKey;
+typedef NS_ENUM(NSUInteger, MRSignalDisplayType) {
+	MRMeterThemeDisplayType,
+    MRMeterRSSIDisplayType,
+	MRMeterDefaultDisplayType,
+};
+
+static char * kMeterSignalDisplayTypeKey;
 static NSString * kMeterStatusBarRefreshNotification = @"MRStatusBarRefreshNotification";
+static NSString * kMeterRememberDisplayTypeNotification = @"MRRememberDisplayTypeNotification";
 static NSString * kMeterAssetDirectoryPath = @"/Library/Application Support/Meter/Assets/";
 static int kMeterLevelCount = 20;
+static NSTimeInterval kMeterLastRSSIToggleTimeInterval;
 
 // Used to detect light / dark content for tinting or image selection
 @interface UIStatusBarForegroundStyleAttributes : NSObject
