@@ -21,60 +21,57 @@ void meterReloadPreferences(CFNotificationCenterRef center, void *observer, CFSt
 
 // Returns "saved display type," as per the farther saveDisplayType function.
 static MRSignalDisplayType meter_savedDisplayType() {
-	MRLOG(@"save, prefs: %@", meterPreferences);
 	if (!meterPreferences || !meterPreferences[kMeterSignalDisplayPreferencesKey]) {
-		MRLOG(@"didn't clear, returning");
 		return MRMeterThemeDisplayType;
 	}
 
 	NSNumber *savedDisplayType = meterPreferences[kMeterSignalDisplayPreferencesKey];
-	MRLOG(@"cleared, %@", savedDisplayType);
-
 	return savedDisplayType ? [savedDisplayType integerValue] : MRMeterThemeDisplayType;
 }
 
 // Saves the given display type at the constant preferences plist location.
 static BOOL meter_saveDisplayType(MRSignalDisplayType type) {
-	if (![[NSBundle mainBundle].bundleIdentifier isEqualToString:@"com.apple.springboard"]) {
+	/*if (![[NSBundle mainBundle].bundleIdentifier isEqualToString:@"com.apple.springboard"]) {
 		MRLOG(@"trying to save from other thread %@, nullifying request", [UIApplication sharedApplication]);
 		return NO;
-	}
-
-	MRLOG(@"save display type %i, prefs: %@", (int)type, meterPreferences);
+	}*/
 
 	NSDictionary *meterPreferencesToSave;
 	if (meterPreferences && meterPreferences[kMeterThemePreferencesKey]) {
-		MRLOG(@"prefs cleared: %@", meterPreferences[kMeterThemePreferencesKey]);
 		meterPreferencesToSave = @{ kMeterSignalDisplayPreferencesKey : @(type), kMeterThemePreferencesKey : meterPreferences[kMeterThemePreferencesKey] };
 	}
 
 	else {
-		MRLOG(@"prefs uncleared");
 		meterPreferencesToSave =  @{ kMeterSignalDisplayPreferencesKey : @(type) };
 	}
 
 	BOOL meterPreferencesSaved = [meterPreferencesToSave writeToFile:kMeterSignalDisplayPreferencesPath atomically:YES];
 
 	[meterPreferences release];
-	meterPreferences = meterPreferencesToSave; // <- currently causes fatal crash!
+	meterPreferences = [meterPreferencesToSave retain];
 
-	MRLOG(@"prefs saved %@: %@", meterPreferencesSaved ? @"YES" : @"NO", meterPreferences);
 	return meterPreferencesSaved;
 }
 
+static NSString * meter_savedAssetPath() {
+	if (!meterPreferences || !meterPreferences[kMeterThemePreferencesKey]) {
+		return [kMeterDirectoryPath stringByAppendingString:@"Default/"];
+	}
+
+	return [NSString stringWithFormat:@"%@%@/", kMeterDirectoryPath, meterPreferences[kMeterThemePreferencesKey]];
+}
+
+
 // Returns if the needed Meter assets are recognized in the proper directory.
-static BOOL meter_assetsArePresent() {
-	NSString *assetPath = [NSString stringWithFormat:@"%@%@/", kMeterDirectoryPath,  meterPreferences ? meterPreferences[kMeterThemePreferencesKey] : @"Default"];
-	int meterAssetDirectoryCount = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:assetPath error:nil].count;
-	MRLOG(@"path %@, count: %i", assetPath, meterAssetDirectoryCount);
+static BOOL meter_assetsArePresentAtPath(NSString *path) {
+	int meterAssetDirectoryCount = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:path error:nil].count;
 	return meterAssetDirectoryCount == kMeterLevelCount * 2;
 }
 
 // Returns the proper image extracted from the assets directory, as per the 
 // given light  and numerical value.
-static UIImage * meter_lightContentsImageForValue(BOOL light, int value) {
-	NSString *assetPath = [NSString stringWithFormat:@"%@%@/", kMeterDirectoryPath,  meterPreferences ? meterPreferences[kMeterThemePreferencesKey] : @"Default"];
-	NSString *meterImagePath = [NSString stringWithFormat:@"%@%@-%i@2x.png", assetPath, light ? @"light" : @"dark", value];
+static UIImage * meter_lightContentsImageForValueAtPath(BOOL light, int value, NSString *path) {
+	NSString *meterImagePath = [NSString stringWithFormat:@"%@%@-%i@2x.png", path, light ? @"light" : @"dark", value];
 	return [UIImage imageWithContentsOfFile:meterImagePath];
 }
 
@@ -202,9 +199,7 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 		nextMeterDisplayType = MRMeterThemeDisplayType;
 	}
 
-	MRLOG(@"will we save it properly?");
 	BOOL savedDisplayTypeProperly = meter_saveDisplayType(nextMeterDisplayType);
-	MRLOG(@"savedDisplayType %@", savedDisplayTypeProperly ? @"YES" : @"NO");
 	if (!savedDisplayTypeProperly) {
 		NSLog(@"[Meter] Wasn't able to properly save display type (%i) to preferences path.", (int)nextMeterDisplayType);
 	}
@@ -216,12 +211,13 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 
 - (_UILegibilityImageSet *)contentsImage {
 	MRSignalDisplayType currentDisplayType = meter_savedDisplayType();
+	NSString *savedAssetPath = meter_savedAssetPath();
 
-	if (currentDisplayType == MRMeterThemeDisplayType && meter_assetsArePresent()) {
+	if (currentDisplayType == MRMeterThemeDisplayType && meter_assetsArePresentAtPath(savedAssetPath)) {
 		CGFloat w, a;	// Color detection lifted from Circlet (https://github.com/insanj/Circlet)
 		[[[self foregroundStyle] textColorForStyle:[self legibilityStyle]] getWhite:&w alpha:&a];
 		
-		UIImage *meterContentsImage = meter_lightContentsImageForValue(w >= 0.5, meter_valueFromRSSIString([self _stringForRSSI]));
+		UIImage *meterContentsImage = meter_lightContentsImageForValueAtPath(w >= 0.5, meter_valueFromRSSIString([self _stringForRSSI]), savedAssetPath);
 		_UILegibilityImageSet *meterLegibilityImageSet = [%c(_UILegibilityImageSet) imageFromImage:meterContentsImage withShadowImage:meterContentsImage];
 		return meterLegibilityImageSet;
 	}
