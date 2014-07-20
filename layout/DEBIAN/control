@@ -7,4 +7,4 @@ Description: An advanced, themable signal meter.
 Maintainer: Julian Weiss <insanjmail@gmail.com>
 Author: Julian (insanj) Weiss
 Section: Tweaks
-Icon: file:///Library/Application Support/Meter/icon@2x.png
+Icon: file:///Library/PreferenceBundles/MeterPreferences.bundle/icon@2x.png

@@ -14,9 +14,9 @@
 #import "substrate.h"
 
 #ifdef DEBUG
-	#define MLOG(fmt, ...) NSLog((@"[Meter] %s [Line %d] " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__)
+	#define MRLOG(fmt, ...) NSLog((@"[Meter] %s [Line %d] " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__)
 #else
-	#define MLOG(fmt, ...) 
+	#define MRLOG(fmt, ...) 
 #endif
 
 typedef NS_ENUM(NSUInteger, MRSignalDisplayType) {
@@ -25,11 +25,20 @@ typedef NS_ENUM(NSUInteger, MRSignalDisplayType) {
 	MRMeterAppleDisplayType,
 };
 
-static NSString *kMeterSignalDisplayPreferencesPath = @"/var/mobile/Library/Preferences/com.insanj.meter.plist", *kMeterSignalDisplayPreferencesKey = @"meterSignalDisplay";
-static NSString * kMeterStatusBarRefreshNotification = @"MRStatusBarRefreshNotification", * kMeterRememberDisplayTypeNotification = @"MRRememberDisplayTypeNotification";
-static NSString * kMeterAssetDirectoryPath = @"/Library/Application Support/Meter/Assets/";
+static NSString * kMeterSignalDisplayPreferencesPath = @"/var/mobile/Library/Preferences/com.insanj.meter.plist";
+static NSString * kMeterSignalDisplayPreferencesKey = @"meterSignalDisplay", * kMeterThemePreferencesKey = @"meterTheme";
+static NSDictionary * meterPreferences = [NSDictionary dictionaryWithContentsOfFile:kMeterSignalDisplayPreferencesPath];
+
+static NSString * kMeterDirectoryPath = @"/Library/Application Support/Meter/";
 static int kMeterLevelCount = 20;
-static NSTimeInterval kMeterLastRSSIToggleTimeInterval;
+
+static CFStringRef kMeterReloadPreferencesNotification = CFSTR("com.insanj.meter/Reload");
+static NSString * kMeterListenerToggleRSSINotification = @"MRListenerToggleRSSINotification";
+static NSString * kMeterStatusBarRefreshNotification = @"MRStatusBarRefreshNotification";
+static NSString * kMeterRememberDisplayTypeNotification = @"MRRememberDisplayTypeNotification";
+
+static NSTimeInterval kMeterLastRSSIToggleTimeInterval = 0.0;
+static UIColor * meterTintColor = [UIColor colorWithRed:81.0/255.0 green:178.0/255.0 blue:183.0/255.0 alpha:1.0];
 
 // Used to detect light / dark content for tinting or image selection
 @interface UIStatusBarForegroundStyleAttributes : NSObject

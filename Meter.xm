@@ -9,34 +9,72 @@
 
 #import "Meter.h"
 
+void meterReloadPreferences(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+	NSLog(@"[Meter] Reloading preferences from %@", [UIApplication sharedApplication]);
+	if (meterPreferences) {
+		[meterPreferences release];
+	}
+
+	meterPreferences = [[NSDictionary alloc] initWithContentsOfFile:kMeterSignalDisplayPreferencesPath];
+	[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterStatusBarRefreshNotification object:nil];
+}
+
 // Returns "saved display type," as per the farther saveDisplayType function.
 static MRSignalDisplayType meter_savedDisplayType() {
-	NSDictionary *meterPreferences = [NSDictionary dictionaryWithContentsOfFile:kMeterSignalDisplayPreferencesPath];
-	if (!meterPreferences) {
+	MRLOG(@"save, prefs: %@", meterPreferences);
+	if (!meterPreferences || !meterPreferences[kMeterSignalDisplayPreferencesKey]) {
+		MRLOG(@"didn't clear, returning");
 		return MRMeterThemeDisplayType;
 	}
 
 	NSNumber *savedDisplayType = meterPreferences[kMeterSignalDisplayPreferencesKey];
+	MRLOG(@"cleared, %@", savedDisplayType);
+
 	return savedDisplayType ? [savedDisplayType integerValue] : MRMeterThemeDisplayType;
 }
 
 // Saves the given display type at the constant preferences plist location.
 static BOOL meter_saveDisplayType(MRSignalDisplayType type) {
-	NSDictionary *meterPreferencesToSave = @{ kMeterSignalDisplayPreferencesKey : @(type)};
+	if (![[NSBundle mainBundle].bundleIdentifier isEqualToString:@"com.apple.springboard"]) {
+		MRLOG(@"trying to save from other thread %@, nullifying request", [UIApplication sharedApplication]);
+		return NO;
+	}
+
+	MRLOG(@"save display type %i, prefs: %@", (int)type, meterPreferences);
+
+	NSDictionary *meterPreferencesToSave;
+	if (meterPreferences && meterPreferences[kMeterThemePreferencesKey]) {
+		MRLOG(@"prefs cleared: %@", meterPreferences[kMeterThemePreferencesKey]);
+		meterPreferencesToSave = @{ kMeterSignalDisplayPreferencesKey : @(type), kMeterThemePreferencesKey : meterPreferences[kMeterThemePreferencesKey] };
+	}
+
+	else {
+		MRLOG(@"prefs uncleared");
+		meterPreferencesToSave =  @{ kMeterSignalDisplayPreferencesKey : @(type) };
+	}
+
 	BOOL meterPreferencesSaved = [meterPreferencesToSave writeToFile:kMeterSignalDisplayPreferencesPath atomically:YES];
+
+	[meterPreferences release];
+	meterPreferences = meterPreferencesToSave; // <- currently causes fatal crash!
+
+	MRLOG(@"prefs saved %@: %@", meterPreferencesSaved ? @"YES" : @"NO", meterPreferences);
 	return meterPreferencesSaved;
 }
 
 // Returns if the needed Meter assets are recognized in the proper directory.
 static BOOL meter_assetsArePresent() {
-	int meterAssetDirectoryCount = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:kMeterAssetDirectoryPath error:nil].count;
+	NSString *assetPath = [NSString stringWithFormat:@"%@%@/", kMeterDirectoryPath,  meterPreferences ? meterPreferences[kMeterThemePreferencesKey] : @"Default"];
+	int meterAssetDirectoryCount = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:assetPath error:nil].count;
+	MRLOG(@"path %@, count: %i", assetPath, meterAssetDirectoryCount);
 	return meterAssetDirectoryCount == kMeterLevelCount * 2;
 }
 
 // Returns the proper image extracted from the assets directory, as per the 
 // given light  and numerical value.
 static UIImage * meter_lightContentsImageForValue(BOOL light, int value) {
-	NSString *meterImagePath = [NSString stringWithFormat:@"%@%@-%i@2x.png", kMeterAssetDirectoryPath, light ? @"light" : @"dark", value];
+	NSString *assetPath = [NSString stringWithFormat:@"%@%@/", kMeterDirectoryPath,  meterPreferences ? meterPreferences[kMeterThemePreferencesKey] : @"Default"];
+	NSString *meterImagePath = [NSString stringWithFormat:@"%@%@-%i@2x.png", assetPath, light ? @"light" : @"dark", value];
 	return [UIImage imageWithContentsOfFile:meterImagePath];
 }
 
@@ -122,24 +160,19 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 - (id)init {
 	SBStatusBarStateAggregator *stateAggregator = %orig();
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:stateAggregator selector:@selector(meter_refreshSignal:) name:kMeterStatusBarRefreshNotification object:nil];
-	MLOG(@"added %@ observer to %@", kMeterStatusBarRefreshNotification, stateAggregator);
 	return stateAggregator;
 }
 
 %new - (void)meter_refreshSignal:(NSNotification *)notification {
-	MLOG(@"heard notification %@, flashing via aggregator %@", notification, self);
 	[self _setItem:3 enabled:NO];
 
 	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 		[self _setItem:3 enabled:YES];
-		MLOG(@"finished flashing item %i", 3);
 	});
 }
 
-
 - (void)dealloc {
 	%orig();
-	MLOG(@"removed %@'s notification observer in -dealloc", [UIApplication sharedApplication]);
 	[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
 }
 
@@ -149,8 +182,7 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 
 - (BOOL)updateForNewData:(id)arg1 actions:(int)arg2 {
 	[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
-	[[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(meter_toggleRSSI:) name:@"MRListenerToggleRSSINotification" object:nil];
-	MLOG(@"removing maybe-existing obervant properties of %@ to prevent duplicate %@ calls", self, @"MRListenerToggleRSSINotification");
+	[[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(meter_toggleRSSI:) name:kMeterListenerToggleRSSINotification object:nil];
 	return %orig();
 }
 
@@ -170,7 +202,9 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 		nextMeterDisplayType = MRMeterThemeDisplayType;
 	}
 
+	MRLOG(@"will we save it properly?");
 	BOOL savedDisplayTypeProperly = meter_saveDisplayType(nextMeterDisplayType);
+	MRLOG(@"savedDisplayType %@", savedDisplayTypeProperly ? @"YES" : @"NO");
 	if (!savedDisplayTypeProperly) {
 		NSLog(@"[Meter] Wasn't able to properly save display type (%i) to preferences path.", (int)nextMeterDisplayType);
 	}
@@ -178,16 +212,12 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 	else {
 		[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterStatusBarRefreshNotification object:nil];
 	}
-
-	MLOG(@"heard call to toggleRSSI, setting %i and posting %@ for it after switching from %i", (int)nextMeterDisplayType, kMeterStatusBarRefreshNotification, (int)previousMeterDisplayType);
 }
 
 - (_UILegibilityImageSet *)contentsImage {
 	MRSignalDisplayType currentDisplayType = meter_savedDisplayType();
 
 	if (currentDisplayType == MRMeterThemeDisplayType && meter_assetsArePresent()) {
-		MLOG(@"heard call to -contentsImage, %@ state is %i and assets are present", [UIApplication sharedApplication], (int)currentDisplayType);
-
 		CGFloat w, a;	// Color detection lifted from Circlet (https://github.com/insanj/Circlet)
 		[[[self foregroundStyle] textColorForStyle:[self legibilityStyle]] getWhite:&w alpha:&a];
 		
@@ -197,20 +227,23 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 	}
 
 	else if (currentDisplayType == MRMeterRSSIDisplayType) {
-		MLOG(@"heard call to -contentsImage, %@ state is %i, item's RSSI is %@", [UIApplication sharedApplication], (int)currentDisplayType, [self _stringForRSSI]);
 		return [self imageWithText:[self _stringForRSSI]];
 	}
 
 	else {
-		MLOG(@"heard call to -contentsImage, %@ state is %i, displaying original contents", [UIApplication sharedApplication], (int)currentDisplayType);
 		return %orig();
 	}
 }
 
 - (void)dealloc {
 	%orig();
-	MLOG(@"removed %@'s status bar item notification observer in -dealloc", [UIApplication sharedApplication]);
 	[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
 }
 
 %end
+
+%ctor {
+	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), [UIApplication sharedApplication], kMeterReloadPreferencesNotification, nil);
+	meterReloadPreferences(NULL, nil, NULL, nil, NULL);
+	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), [UIApplication sharedApplication], &meterReloadPreferences, kMeterReloadPreferencesNotification, nil, 0);
+}
