@@ -4,7 +4,7 @@ ARCHS = armv7 armv7s arm64
 include theos/makefiles/common.mk
 
 BUNDLE_NAME = MeterPreferences
-MeterPreferences_FILES = MeterPreferences.xm
+MeterPreferences_FILES = MeterPreferences.xm MRTwitterCell.m
 MeterPreferences_INSTALL_PATH = /Library/PreferenceBundles
 MeterPreferences_FRAMEWORKS = UIKit Twitter
 MeterPreferences_PRIVATE_FRAMEWORKS = Preferences

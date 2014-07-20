@@ -9,7 +9,9 @@
 
 #import "Meter.h"
 
-void meterReloadPreferences(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+static NSDictionary * meterPreferences = [NSDictionary dictionaryWithContentsOfFile:kMeterSignalDisplayPreferencesPath];
+
+void meterReloadPreferences() {
 	NSLog(@"[Meter] Reloading preferences from %@", [UIApplication sharedApplication]);
 	if (meterPreferences) {
 		[meterPreferences release];
@@ -239,7 +241,7 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 %end
 
 %ctor {
-	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), [UIApplication sharedApplication], kMeterReloadPreferencesNotification, nil);
-	meterReloadPreferences(NULL, nil, NULL, nil, NULL);
-	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), [UIApplication sharedApplication], &meterReloadPreferences, kMeterReloadPreferencesNotification, nil, 0);
+	[[NSDistributedNotificationCenter defaultCenter] addObserverForName:kMeterReloadPreferencesNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *notification) {
+		meterReloadPreferences();
+	}];
 }

@@ -1,8 +1,14 @@
 #import <Preferences/Preferences.h>
 #import <Twitter/Twitter.h>
 #import <UIKit/UIKit.h>
-#import "../Meter.h"
+#import <Foundation/NSDistributedNotificationCenter.h>
 
-@interface MRListItemsController : PSListItemsController 
+@interface MRListController : PSListController {
+	NSMutableArray *themes;
+}
+
+@end
+
+@interface MRListItemsController : PSListItemsController
 
 @end

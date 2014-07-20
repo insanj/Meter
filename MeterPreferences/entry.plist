@@ -1,8 +1,8 @@
 {
     entry = {
 		bundle = MeterPreferences;
-		cell = PSLinkListCell;
-		detail = MRListItemsController;
+		cell = PSLinkCell;
+		detail = MRListController;
 		icon = "icon.png";
 		isController = 1;
 		label = "Meter";

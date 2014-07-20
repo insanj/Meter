@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>items</key>
+	<array>
+		<dict>
+			<key>cell</key> 		<string>PSGroupCell</string>
+			<key>footerText</key> 	<string>Try single tap left on the status bar.</string>
+		</dict>
+
+		<dict>
+			<key>cell</key> 				<string>PSLinkCell</string>
+			<key>label</key> 				<string>Activation Methods</string>
+			<key>id</key> 					<string>ActivationMethods</string>
+			<key>isController</key> 		<true/>
+			<key>bundle</key> 				<string>LibActivator</string>			
+			<key>activatorListener</key> 	<string>com.insanj.MeterListener</string>
+		</dict>
+
+		<dict>
+			<key>cell</key> 		<string>PSGroupCell</string>
+			<key>footerText</key> 	<string>Select a theme to apply it instantly.</string>
+		</dict>
+
+		<dict>
+		    <key>cell</key> 			 <string>PSLinkListCell</string>
+            <key>detail</key> 			 <string>MRListItemsController</string>
+		    <key>key</key> 				 <string>meterTheme</string>
+            <key>staticTextMessage</key> <string>Themes are read dynamically every time you open this pane.</string>
+            <key>defaults</key>    		 <string>com.insanj.meter</string>
+            <key>label</key> 	    	 <string>Theme</string>
+            <key>titlesDataSource</key>  <string>themeTitles:</string>
+            <key>valuesDataSource</key>  <string>themeValues:</string>
+        </dict>
+
+		<dict>
+			<key>cell</key> 		<string>PSGroupCell</string>
+			<key>footerText</key> 	<string>© 2014 Julian Weiss</string>
+		</dict>
+
+		<dict>
+			<key>cellClass</key> 	<string>MRTwitterCell</string>
+			<key>label</key> 		<string>Developer</string>
+			<key>user</key> 		<string>insanj</string>
+		</dict>
+
+		<dict>
+			<key>cellClass</key> 	<string>MRTwitterCell</string>
+			<key>label</key> 		<string>Designer</string>
+			<key>user</key> 		<string>joe012594</string>
+		</dict>
+
+	</array>
+	<key>title</key> 	<string>Meter</string>
+</dict>
+</plist>

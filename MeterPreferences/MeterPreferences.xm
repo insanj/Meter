@@ -1,83 +1,54 @@
 #import "MeterPreferences.h"
 
-void meterReloadPreferences(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-	NSLog(@"[Meter] Reloading preferences from %@", [UIApplication sharedApplication]);
-	if (meterPreferences) {
-		[meterPreferences release];
-	}
+static NSString * kMeterPreferencesDirectoryPath = @"/Library/Application Support/Meter/";
+static NSString * kMeterReloadPreferencesNotification = @"MRReloadPreferencesNotification";
 
-	meterPreferences = [[NSDictionary alloc] initWithContentsOfFile:kMeterSignalDisplayPreferencesPath];
-}
-
-@implementation MRListItemsController
+@implementation MRListController
 
 - (id)specifiers {
 	if (!_specifiers) {
-		NSURL __block *themePathURL = [NSURL fileURLWithPath:kMeterDirectoryPath];
-		NSDirectoryEnumerator *themesEnumerator = [[NSFileManager defaultManager] enumeratorAtURL:themePathURL includingPropertiesForKeys:nil options:(NSDirectoryEnumerationSkipsHiddenFiles | NSDirectoryEnumerationSkipsSubdirectoryDescendants) errorHandler:^BOOL(NSURL *url, NSError *error) {
-			NSLog(@"[Meter] Encountered error enumerating through theme directory %@: %@", themePathURL, error);
-			return YES;
-		}];
-
-		NSMutableArray *themesSpecifiers = [[NSMutableArray alloc] init];
-		// NSString *lastAssignedThemeName = meterPreferences[kMeterThemePreferencesKey];
-		while (themePathURL = [themesEnumerator nextObject]) {
-			PSSpecifier *themeSpecifier = [PSSpecifier preferenceSpecifierNamed:[themePathURL path] target:self set:NULL get:NULL detail:nil cell:PSLinkCell edit:nil];
-			[themesSpecifiers addObject:themeSpecifier];
-
-			// if ([themePathName isEqualToString:lastAssignedThemeName]) {
-			// 	[self selectRowForSpecifier:themeSpecifier];
-			// }
-		}
-
-		_specifiers = [themesSpecifiers retain];
+		_specifiers = [[self loadSpecifiersFromPlistName:@"MeterPreferences" target:self] retain];
 	}
 
 	return _specifiers;
 }
 
-
 - (void)loadView {
 	[super loadView];
 
-	meterReloadPreferences(NULL, nil, NULL, nil, NULL);
-	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), [UIApplication sharedApplication], &meterReloadPreferences, kMeterReloadPreferencesNotification, nil, 0);
+	themes = [[NSMutableArray alloc] init];
+	NSDirectoryEnumerator *themeEnumerator = [[NSFileManager defaultManager] enumeratorAtURL:[NSURL fileURLWithPath:kMeterPreferencesDirectoryPath] includingPropertiesForKeys:nil options:(NSDirectoryEnumerationSkipsSubdirectoryDescendants | NSDirectoryEnumerationSkipsHiddenFiles) errorHandler:^BOOL(NSURL *url, NSError *error) {
+		NSLog(@"[Meter] Encountered error enumerating through theme directory %@:", error);
+		return YES;
+	}];
+
+	NSURL *themeAbsolutePath;
+	while (themeAbsolutePath = [themeEnumerator nextObject]) {
+		[themes addObject:[themeAbsolutePath lastPathComponent]];
+	}
 
 	self.navigationItem.rightBarButtonItem = [[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAction target:self action:@selector(shareTapped:)] autorelease];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
-	self.view.tintColor = meterTintColor;
-	self.navigationController.navigationBar.tintColor = meterTintColor;
+	self.view.tintColor = [UIColor colorWithRed:81.0/255.0 green:178.0/255.0 blue:183.0/255.0 alpha:1.0];
+	self.navigationController.navigationBar.tintColor = [UIColor colorWithRed:81.0/255.0 green:178.0/255.0 blue:183.0/255.0 alpha:1.0];
 	[super viewWillAppear:animated];
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
 	[super viewWillDisappear:animated];
+	
 	self.view.tintColor = nil;
 	self.navigationController.navigationBar.tintColor = nil;
 }
 
-- (id)tableView:(id)arg1 cellForRowAtIndexPath:(id)arg2 {
-	PSTableCell *cell = [super tableView:arg1 cellForRowAtIndexPath:arg2];
-	cell.textLabel.textColor = meterTintColor;
-	return cell;
+- (NSArray *)themeTitles:(id)target {
+	return themes;
 }
 
-- (void)tableView:(id)arg1 didSelectRowAtIndexPath:(id)arg2 {
-	[super tableView:arg1 didSelectRowAtIndexPath:arg2];
-
-	PSSpecifier *themeSpecifier = [self specifierAtIndex:((NSIndexPath *)arg2).row];
-	BOOL themeWrote;
-	if (meterPreferences && meterPreferences[kMeterSignalDisplayPreferencesKey]) {
-		themeWrote = [@{ kMeterThemePreferencesKey : themeSpecifier.name, kMeterSignalDisplayPreferencesKey : meterPreferences[kMeterSignalDisplayPreferencesKey] } writeToFile:kMeterSignalDisplayPreferencesPath atomically:YES];
-	}
-
-	else {
-		themeWrote = [@{ kMeterThemePreferencesKey : themeSpecifier.name } writeToFile:kMeterSignalDisplayPreferencesPath atomically:YES];
-	}
-
-	NSLog(@"[Meter] User selected new theme %@, wrote to file: %@", themeSpecifier, themeWrote ? @"YES" : @"NO");
+- (NSArray *)themeValues:(id)target {
+	return themes;
 }
 
 - (void)shareTapped:(UIBarButtonItem *)sender {
@@ -102,9 +73,37 @@ void meterReloadPreferences(CFNotificationCenterRef center, void *observer, CFSt
 }
 
 - (void)dealloc {
+	[themes release];
 	[super dealloc];
+}
 
-	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), [UIApplication sharedApplication], kMeterReloadPreferencesNotification, nil);
+@end
+
+@implementation MRListItemsController
+
+- (void)viewWillAppear:(BOOL)animated {
+	self.view.tintColor = [UIColor colorWithRed:81.0/255.0 green:178.0/255.0 blue:183.0/255.0 alpha:1.0];
+    self.navigationController.navigationBar.tintColor = [UIColor colorWithRed:81.0/255.0 green:178.0/255.0 blue:183.0/255.0 alpha:1.0];
+
+    [super viewWillAppear:animated];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    
+	self.view.tintColor = nil;
+    self.navigationController.navigationBar.tintColor = nil;
+}
+
+- (id)tableView:(id)arg1 cellForRowAtIndexPath:(id)arg2 {
+	PSTableCell *cell = [super tableView:arg1 cellForRowAtIndexPath:arg2];
+	cell.textLabel.textColor = [UIColor colorWithRed:81.0/255.0 green:178.0/255.0 blue:183.0/255.0 alpha:1.0];
+	return cell;
+}
+
+- (void)tableView:(id)arg1 didSelectRowAtIndexPath:(id)arg2 {
+	[super tableView:arg1 didSelectRowAtIndexPath:arg2];
+	[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterReloadPreferencesNotification object:nil];
 }
 
 @end

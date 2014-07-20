@@ -27,18 +27,16 @@ typedef NS_ENUM(NSUInteger, MRSignalDisplayType) {
 
 static NSString * kMeterSignalDisplayPreferencesPath = @"/var/mobile/Library/Preferences/com.insanj.meter.plist";
 static NSString * kMeterSignalDisplayPreferencesKey = @"meterSignalDisplay", * kMeterThemePreferencesKey = @"meterTheme";
-static NSDictionary * meterPreferences = [NSDictionary dictionaryWithContentsOfFile:kMeterSignalDisplayPreferencesPath];
 
 static NSString * kMeterDirectoryPath = @"/Library/Application Support/Meter/";
 static int kMeterLevelCount = 20;
 
-static CFStringRef kMeterReloadPreferencesNotification = CFSTR("com.insanj.meter/Reload");
+static NSString * kMeterReloadPreferencesNotification = @"MRReloadPreferencesNotification";
 static NSString * kMeterListenerToggleRSSINotification = @"MRListenerToggleRSSINotification";
 static NSString * kMeterStatusBarRefreshNotification = @"MRStatusBarRefreshNotification";
 static NSString * kMeterRememberDisplayTypeNotification = @"MRRememberDisplayTypeNotification";
 
 static NSTimeInterval kMeterLastRSSIToggleTimeInterval = 0.0;
-static UIColor * meterTintColor = [UIColor colorWithRed:81.0/255.0 green:178.0/255.0 blue:183.0/255.0 alpha:1.0];
 
 // Used to detect light / dark content for tinting or image selection
 @interface UIStatusBarForegroundStyleAttributes : NSObject
