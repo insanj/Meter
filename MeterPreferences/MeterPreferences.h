@@ -3,6 +3,6 @@
 #import <UIKit/UIKit.h>
 #import "../Meter.h"
 
-@interface MRListController: PSListController 
+@interface MRListItemsController : PSListItemsController 
 
 @end
