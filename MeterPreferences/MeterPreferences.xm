@@ -52,8 +52,8 @@ static NSString * kMeterReloadPreferencesNotification = @"MRReloadPreferencesNot
 }
 
 - (void)shareTapped:(UIBarButtonItem *)sender {
-	NSString *text = @"an advanced, themable meter that tells the truth about your signal. free from @insanj and @joe012594.";
-	NSURL *url = [NSURL URLWithString:@"http://github.com/insanj/meter"];
+	NSString *text = @"An advanced, themable meter that tells the truth about your signal. Free from @insanj and @joe012594.";
+	NSURL *url = [NSURL URLWithString:@"http://insanj.github.io/Meter/"];
 
 	if (%c(UIActivityViewController)) {
 		UIActivityViewController *viewController = [[[%c(UIActivityViewController) alloc] initWithActivityItems:[NSArray arrayWithObjects:text, url, nil] applicationActivities:nil] autorelease];
