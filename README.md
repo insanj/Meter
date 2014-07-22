@@ -5,6 +5,8 @@ An advanced, themable signal meter. Created by [insanj](https://twitter.com/insa
 
 Uses [Circlet](https://github.com/insanj/Circlet)'s precedent with status bar operations, and some of [libhbangcommon](https://github.com/hbang/libhbangcommon) for preferences pane work. License information for technology used is available in [ACKNOWLEDGEMENTS](ACKNOWLEDGEMENTS.md).
 
+![](screenie-1.png)![](screenie-2.png)
+
 ---------------------------------------
 [Creative Commons Attribution-NonCommercial 3.0 United States License](http://creativecommons.org/licenses/by-nc/3.0/us/) as of 2014:
 

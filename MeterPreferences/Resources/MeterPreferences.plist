@@ -27,7 +27,7 @@
 		    <key>cell</key> 			 <string>PSLinkListCell</string>
             <key>detail</key> 			 <string>MRListItemsController</string>
 		    <key>key</key> 				 <string>meterTheme</string>
-            <key>staticTextMessage</key> <string>Themes are read dynamically every time you open this pane.</string>
+            <key>staticTextMessage</key> <string>Themes are read dynamically every time you open this pane.&#10;&#10;Add more by dropping appropriate folders in /Library/Application Support/Meter/.</string>
             <key>defaults</key>    		 <string>com.insanj.meter</string>
             <key>label</key> 	    	 <string>Theme</string>
             <key>titlesDataSource</key>  <string>themeTitles:</string>

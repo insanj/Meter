@@ -33,11 +33,6 @@ static MRSignalDisplayType meter_savedDisplayType() {
 
 // Saves the given display type at the constant preferences plist location.
 static BOOL meter_saveDisplayType(MRSignalDisplayType type) {
-	/*if (![[NSBundle mainBundle].bundleIdentifier isEqualToString:@"com.apple.springboard"]) {
-		MRLOG(@"trying to save from other thread %@, nullifying request", [UIApplication sharedApplication]);
-		return NO;
-	}*/
-
 	NSDictionary *meterPreferencesToSave;
 	if (meterPreferences && meterPreferences[kMeterThemePreferencesKey]) {
 		meterPreferencesToSave = @{ kMeterSignalDisplayPreferencesKey : @(type), kMeterThemePreferencesKey : meterPreferences[kMeterThemePreferencesKey] };

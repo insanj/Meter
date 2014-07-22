@@ -1,7 +1,7 @@
 Package: com.insanj.meter
 Name: Meter
 Depends: mobilesubstrate
-Version: 0.1
+Version: 1.0
 Architecture: iphoneos-arm
 Description: An advanced, themable signal meter.
 Maintainer: Julian Weiss <insanjmail@gmail.com>
