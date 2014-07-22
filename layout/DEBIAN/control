@@ -1,6 +1,6 @@
 Package: com.insanj.meter
 Name: Meter
-Depends: mobilesubstrate
+Depends: mobilesubstrate, libactivator
 Version: 1.0
 Architecture: iphoneos-arm
 Description: An advanced, themable signal meter.

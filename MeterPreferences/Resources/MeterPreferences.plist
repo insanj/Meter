@@ -36,7 +36,7 @@
 
 		<dict>
 			<key>cell</key> 		<string>PSGroupCell</string>
-			<key>footerText</key> 	<string>© 2014 Julian Weiss</string>
+			<key>footerText</key> 	<string>© 2014 Julian Weiss&#10;Source available online.</string>
 		</dict>
 
 		<dict>
@@ -47,8 +47,14 @@
 
 		<dict>
 			<key>cellClass</key> 	<string>MRTwitterCell</string>
-			<key>label</key> 		<string>Designer</string>
+			<key>label</key> 		<string>Idea &amp; Themes</string>
 			<key>user</key> 		<string>joe012594</string>
+		</dict>
+
+		<dict>
+			<key>cellClass</key> 	<string>MRTwitterCell</string>
+			<key>label</key> 		<string>Icon</string>
+			<key>user</key> 		<string>meteochu</string>
 		</dict>
 
 	</array>
