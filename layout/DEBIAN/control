@@ -3,7 +3,7 @@ Name: Meter
 Depends: mobilesubstrate, libactivator
 Version: 1.0
 Architecture: iphoneos-arm
-Description: An advanced, themable signal meter.
+Description: An advanced, themable signal meter
 Maintainer: Julian Weiss <insanjmail@gmail.com>
 Author: Julian (insanj) Weiss
 Section: Tweaks

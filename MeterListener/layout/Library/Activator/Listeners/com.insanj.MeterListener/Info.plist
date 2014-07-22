@@ -1,4 +1,4 @@
 {
 	title = "Meter";
-	description = "Swap Meter for RSSI string.";
+	description = "Cycle between Meter, RSSI, and standard";
 }
