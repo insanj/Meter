@@ -239,4 +239,5 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 	[[NSDistributedNotificationCenter defaultCenter] addObserverForName:kMeterReloadPreferencesNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *notification) {
 		meterReloadPreferences();
 	}];
+    meterReloadPreferences();
 }
