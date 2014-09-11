@@ -11,14 +11,15 @@
 
 static NSDictionary * meterPreferences = [NSDictionary dictionaryWithContentsOfFile:kMeterSignalDisplayPreferencesPath];
 
-void meterReloadPreferences() {
+void meterReloadPreferences(BOOL refreshStatusBar = YES) {
 	NSLog(@"[Meter] Reloading preferences from %@", [UIApplication sharedApplication]);
 	if (meterPreferences) {
 		[meterPreferences release];
 	}
 
 	meterPreferences = [[NSDictionary alloc] initWithContentsOfFile:kMeterSignalDisplayPreferencesPath];
-	[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterStatusBarRefreshNotification object:nil];
+	if (refreshStatusBar)
+		[[NSDistributedNotificationCenter defaultCenter] postNotificationName:kMeterStatusBarRefreshNotification object:nil];
 }
 
 // Returns "saved display type," as per the farther saveDisplayType function.
@@ -239,4 +240,5 @@ static int meter_valueFromRSSIString(NSString *rssiString) {
 	[[NSDistributedNotificationCenter defaultCenter] addObserverForName:kMeterReloadPreferencesNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *notification) {
 		meterReloadPreferences();
 	}];
+    meterReloadPreferences(NO);
 }
